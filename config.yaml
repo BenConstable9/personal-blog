@@ -1,4 +1,4 @@
-baseURL: "https://examplesite.com/"
+baseURL: "https://benconstable.dev"
 title: "Ben Constable | Personal Blog"
 paginate: 5
 theme: PaperMod
@@ -43,29 +43,12 @@ params:
   tocopen: false
 
   label:
-    text: "Home"
-    icon: /apple-touch-icon.png
-    iconHeight: 35
-
-  # profile-mode
-  profileMode:
-    enabled: false # needs to be explicitly set
-    title: ExampleSite
-    subtitle: "This is subtitle"
-    imageUrl: "<img location>"
-    imageWidth: 120
-    imageHeight: 120
-    imageTitle: my image
-    buttons:
-      - name: Posts
-        url: posts
-      - name: Tags
-        url: tags
+    text: "Ben Constable | Data & AI"
 
   # home-info mode
   homeInfoParams:
     Title: "Heya \U0001F44B"
-    Content: "I am Azure Data & AI Consultant. Here you will find some useful takeaways from projects:"
+    Content: "I am Azure Data & AI Consultant working on a variety of projects to help customers move to the cloud. Here you will find some useful takeaways from recent projects:"
 
   socialIcons:
     - name: linkedin
@@ -94,4 +77,9 @@ params:
       - identifier: posts
         name: Posts
         url: /posts/
+        weight: 10
+
+      - identifier: about
+        name: About
+        url: /about/
         weight: 10
