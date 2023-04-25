@@ -1,5 +1,5 @@
 ---
-title: "Flake Only Changed Python Files"
+title: "Flake Changed Python Files Only On PR"
 date: 2023-04-24T15:31:44+01:00
 tags: ["Azure DevOps", "Python", "Flake8"]
 draft: false
