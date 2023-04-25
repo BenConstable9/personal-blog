@@ -60,6 +60,8 @@ To flake only changed files, use *git diff* with *xargs* to pipe the result to t
 
 - *git diff HEAD~ HEAD* generates the difference between the source branch and the target branch.
 
+- *--name-only* filters to only return the name of the files changed.
+
 - *--diff-filter=ACMRT* filters out any deleted files. Without this, if files are deleted during a PR, linting will fail as they do not exist.
 
 - *xargs -r* is used to send the contents of *$workingDirectoryChangedFiles* to the linting command; in this case, we are using Flake8 with a redirection to an output file*--no-run-if-empty (-r)* is used to prevent Flake8 from failing.
