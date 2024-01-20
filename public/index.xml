@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Ben Constable | Personal Blog</title>
+    <link>https://www.benconstable.dev/</link>
+    <description>Recent content on Ben Constable | Personal Blog</description>
+    <image>
+      <title>Ben Constable | Personal Blog</title>
+      <url>https://www.benconstable.dev/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>https://www.benconstable.dev/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+    </image>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en</language>
+    <lastBuildDate>Mon, 24 Apr 2023 15:31:44 +0100</lastBuildDate><atom:link href="https://www.benconstable.dev/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>About</title>
+      <link>https://www.benconstable.dev/about/</link>
+      <pubDate>Mon, 24 Apr 2023 16:58:07 +0100</pubDate>
+      
+      <guid>https://www.benconstable.dev/about/</guid>
+      <description>Data Engineer.
+I&amp;rsquo;m working as an Azure Data &amp;amp; AI Consultant, helping to drive forward customer projects through the adoption of Azure services. My key areas of focus within current projects is DevOps, Python, DataBricks, SQL, &amp;amp; DataFactory.
+Writing about key findings from projects.</description>
+    </item>
+    
+    <item>
+      <title>Flake Changed Python Files Only On PR</title>
+      <link>https://www.benconstable.dev/posts/flake-changed-python-files-only-on-pr/</link>
+      <pubDate>Mon, 24 Apr 2023 15:31:44 +0100</pubDate>
+      
+      <guid>https://www.benconstable.dev/posts/flake-changed-python-files-only-on-pr/</guid>
+      <description>Have you ever needed to run linting or Flake8 only on specific Python files during build validation checks on Pull Requests (PRs) in Azure DevOps?
+In certain situations, such as implementing Flake8 on a pre-existing large-scale project, you may only want to enforce Flake8 checks on the modified files in a PR. By utilizing Azure DevOps and Git Difference, Flake8 (or any other linting tool!) can be restricted to designated files by following the steps outlined below:</description>
+    </item>
+    
+  </channel>
+</rss>
