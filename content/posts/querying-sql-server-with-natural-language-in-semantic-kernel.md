@@ -22,7 +22,7 @@ By combining existing RAG techniques with natural language to SQL processing, we
 
 Below, a proof of concept implementation is shown in Python using [Semantic Kernel](https://github.com/microsoft/semantic-kernel) for orchestration with natural language to SQL conversion. Semantic Kernel is a Microsoft provided SDK that automatically orchestrates plugins to fulfill user requests using an LLM. 
 
-![Semantic Kernel Image](/static/Semantic%20Kernel.png)
+![Semantic Kernel Image](/Semantic%20Kernel.png)
 *AI orchestration with Semantic Kernel. Image Source: [GitHub](https://github.com/microsoft/semantic-kernel)*
 
 **This code is not production-ready but simply a proof of concept. Care should be taken to improve the SQL security to prevent attacks on the database, such as SQL injection.**
@@ -35,7 +35,7 @@ For this example, we have the following deployed in Azure:
 
 Below is a sample of the data available in the Adventure Works database. In an enterprise scenario, this data may change in near-real time, so querying the database directly, enables users to get the most up to date information available, rather than ingesting and indexing it.
 
-![Sample Data](/static/Adventure%20Works%20Sample%20Data.png)
+![Sample Data](/Adventure%20Works%20Sample%20Data.png)
 
 Whilst we are using SQL server in this scenario, any database could be used.
 
