@@ -20,7 +20,10 @@ With the recent rise of Retrieval Augmented Generation (RAG) alongside Large Lan
 
 By combining existing RAG techniques with natural language to SQL processing, we can create enterprise chatbot systems that can fetch and summarize both unstructured and structured data.
 
-Below, a proof of concept implementation is shown in Python using [Semantic Kernel](https://github.com/microsoft/semantic-kernel) for orchestration with natural language to SQL conversion.
+Below, a proof of concept implementation is shown in Python using [Semantic Kernel](https://github.com/microsoft/semantic-kernel) for orchestration with natural language to SQL conversion. Semantic Kernel is a Microsoft provided SDK that automatically orchestrates plugins to fulfill user requests using an LLM. 
+
+![Semantic Kernel Image](/static/Semantic%20Kernel.png)
+*AI orchestration with Semantic Kernel. Image Source: [GitHub](https://github.com/microsoft/semantic-kernel)*
 
 **This code is not production-ready but simply a proof of concept. Care should be taken to improve the SQL security to prevent attacks on the database, such as SQL injection.**
 
@@ -29,6 +32,12 @@ Below, a proof of concept implementation is shown in Python using [Semantic Kern
 For this example, we have the following deployed in Azure:
 - SQL Server with the [Adventure Works](https://learn.microsoft.com/en-us/sql/samples/adventureworks-install-configure?view=sql-server-ver16&tabs=ssms) sample database
 - GPT-4
+
+Below is a sample of the data available in the Adventure Works database. In an enterprise scenario, this data may change in near-real time, so querying the database directly, enables users to get the most up to date information available, rather than ingesting and indexing it.
+
+![Sample Data](/static/Adventure%20Works%20Sample%20Data.png)
+
+Whilst we are using SQL server in this scenario, any database could be used.
 
 ### 2. Setting Up GPT Chat Completion
 
@@ -182,3 +191,12 @@ The user will ask you for help with each step.</text></message><message role="us
         CREATE VIEW [SalesLT].[vGetAllCategories] WITH SCHEMABINDING AS -- Returns the CustomerID, first name, and last name for the specified customer. WITH CategoryCTE([ParentProductCategoryID], [ProductCategoryID], [Name]) AS ( SELECT [ParentProductCategoryID], [ProductCategoryID], [Name] FROM SalesLT.ProductCategory WHERE ParentProductCategoryID IS NULL UNION ALL SELECT C.[ParentProductCategoryID], C.[ProductCategoryID], C.[Name] FROM SalesLT.ProductCategory AS C INNER JOIN CategoryCTE AS BC ON BC.ProductCategoryID = C.ParentProductCategoryID ) SELECT PC.[Name] AS [ParentProductCategoryName], CCTE.[Name] as [ProductCategoryName], CCTE.[ProductCategoryID] FROM CategoryCTE AS CCTE JOIN SalesLT.ProductCategory AS PC ON PC.[ProductCategoryID] = CCTE.[ParentProductCategoryID]
         
         Do not use any other tables/views other than those defined above.</function_result></message><message role="user"><text>Perform the next step of the plan if there is more work to do. When you have reached a final answer, use the UserInteraction-SendFinalAnswer function to communicate this back to the user.</text></message><message ai_model_id="gpt-4" finish_reason="tool_calls" role="assistant"><function_call id="call_WyEofwvMLiKdD82TWC7lR57C" name="SQLDB-RunSQLQuery">{"query":"SELECT TOP 1 [ProductCategoryName] FROM [SalesLT].[vGetAllCategories]"}</function_call></message><message role="tool"><function_result id="call_WyEofwvMLiKdD82TWC7lR57C" name="SQLDB-RunSQLQuery">{'ProductCategoryName': 'Bike Racks'}</function_result></message><message role="user"><text>Perform the next step of the plan if there is more work to do. When you have reached a final answer, use the UserInteraction-SendFinalAnswer function to communicate this back to the user.</text></message><message ai_model_id="gpt-4" finish_reason="tool_calls" role="assistant"><function_call id="call_AxnIvxX36lJJwvfiUMKD5jz6" name="UserInteraction-SendFinalAnswer">{"answer":"An example of a category from the SQL database is 'Bike Racks'."}</function_call></message></chat_history>
+```
+
+### 7. Production Considerations
+
+If using this technique in production, the following should be considered amongst others:
+
+- Proper management of secrets within the Semantic Kernel script.
+- SQL Data Access Management to ensure that the LLM cannot query data it does not have access to.
+- Validation of SQL query to ensure it does not invoke an SQL injection for instance.
