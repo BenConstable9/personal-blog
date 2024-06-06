@@ -148,7 +148,9 @@ Q: Give me an example of one of the categories.
 A: An example of one of the categories from the database is 'Bike Racks'.
 ```
 
-Our LLM has automatically worked out from the prompt what the categories relate to, formulated an SQL query from natural language, and ran the formulated query directly on the database to produce a result.
+Our LLM has automatically worked out from the prompt what the categories relate to, formulated an SQL query from natural language, and ran the formulated query directly on the database to produce a result without the user needing to know about the database structure or any SQL. Super cool!
+
+**This has great potential in expanding AI powered services, to leverage the vast amount of structured data available in enterprises.**
 
 The full plan executed by the LLM can be viewed with:
 
