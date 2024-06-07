@@ -104,7 +104,7 @@ async def run_sql_query(self, query: Annotated[str, "The SQL query to run agains
     connection_string = os.environ["SQL-CONNECTION-STRING"]
     async with await aioodbc.connect(dsn=connection_string) as sql_db_client:
         async with sql_db_client.cursor() as cursor:
-            await cursor.execute(statement)
+            await cursor.execute(query)
 
             columns = [column[0] for column in cursor.description]
 
