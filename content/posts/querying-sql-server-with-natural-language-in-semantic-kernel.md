@@ -55,9 +55,9 @@ chat_service = AzureChatCompletion(
 kernel.add_service(chat_service)
 ```
 
-### 3. SQL Schema Plugin
+### 3. SQL Schema Knowledge
 
-To enable the SQL plugin, a custom [Semantic Kernel Plugin](https://learn.microsoft.com/en-us/semantic-kernel/agents/plugins/?tabs=python) is developed. The SQL Schemas Plugin holds information on the schemas available within the database that the LLM can use to form an SQL query.
+To enable the SQL plugin, a custom [Semantic Kernel Plugin](https://learn.microsoft.com/en-us/semantic-kernel/agents/plugins/?tabs=python) is developed. The SQL Plugin holds information on the schemas available within the database that the LLM can use to form an SQL query, and provides a method to run a given SQL query.
 
 Adding all the table/view definitions enables the LLM to have in-depth knowledge about the contents of the database that can be used.
 
@@ -68,8 +68,8 @@ import os
 from typing import Annotated
 
 class SQLPlugin:
-    @kernel_function(description="Returns SQL schema for the databases.", name="GetSQLSchemas")
-    def get_sql_schemas(self):
+    @staticmethod
+    def get_system_prompt():
         """Get the schemas for the database
         
         Returns:
@@ -84,9 +84,9 @@ class SQLPlugin:
         return schema
 ```
 
-Semantic Kernel uses *kernel_function* to provide information to the LLM on what actions the function is capable of completing. This is used in the planning stage to determine whether to invoke the function or not.
+This method could be implemented as a dynamic method similarly to the query function below if you have a large number of tables for instance. However, this adds latency into the system as LLM needs to run this step in the orchestration process, and the orchestrator needs to query the DB for the tables. By hardcoding the schema, we can significantly speed up the retrieval.
 
-### 4. SQL Query Plugin
+### 4. SQL Query Function
 
 To implement querying of the database, another function is added to the SQLPlugin to run the generated query against the database. The *aioodbc* library is used for asynchronous connections to the database.
 
@@ -116,6 +116,8 @@ async def run_sql_query(self, query: Annotated[str, "The SQL query to run agains
     return results
 ```
 
+Semantic Kernel uses *kernel_function* to provide information to the LLM on what actions the function is capable of completing. This is used in the planning stage to determine whether to invoke the function or not.
+
 ### 5. Adding SQLPlugin to Kernel
 
 Our custom SQL plugin needs to be registered with Semantic Kernel.
@@ -142,19 +144,31 @@ options = FunctionCallingStepwisePlannerOptions(
 planner = FunctionCallingStepwisePlanner(service_id="chat-gpt", options=options)
 ```
 
-The planner can be invoked with:
+To provide information about the database schemas, we use the system prompt that we defined in our plugin, along with some basic prompt engineering.
 
 ```python
 question = "Give me an example of one of the categories."
-response = await planner.invoke(kernel, question)
+full_prompt = f"""Here is some additional information that you might find useful in determining which functions to call to fulfill the user question.
+
+SQL Database Information:
+{SQLPlugin.system_prompt()}
+
+User Question:
+{question}"""
+```
+
+Finally, planner can be invoked with:
+
+```python
+response = await planner.invoke(kernel, full_prompt)
 print(f"Q: {question}\nA: {response.final_answer}\n")
 ```
 
 The response from the LLM is:
 
 ```
-Q: Give me an example of one of the categories.
-A: An example of one of the categories from the database is 'Bike Racks'.
+Q: Find 5 categories for sales data.
+A: The 5 categories for sales data are: 1. Bike Racks, 2. Bike Stands, 3. Bottles and Cages, 4. Cleaners, 5. Fenders.
 ```
 
 Our LLM has automatically worked out from the prompt what the categories relate to, formulated an SQL query from natural language, and ran the formulated query directly on the database to produce a result without the user needing to know about the database structure or any SQL. Super cool!
@@ -170,27 +184,40 @@ print(f"Chat history: {response.chat_history}\n")
 Resulting in a plan of:
 
 ```
-Chat history: <chat_history><message role="user"><text>Original request: Give me an example of one of the categories.
+Chat history: <chat_history><message role="user"><text>Original request: Here is some additional information that you might find useful in determining which functions to call to fulfill the user question.
+
+SQL Database Information:
+Use the following SQL Schema Views and their associated definitions when you need to fetch information from a database:
+
+        vGetAllCategories View. Use this to get details about the categories available.
+        CREATE VIEW [SalesLT].[vGetAllCategories] WITH SCHEMABINDING AS -- Returns the CustomerID, first name, and last name for the specified customer. WITH CategoryCTE([ParentProductCategoryID], [ProductCategoryID], [Name]) AS ( SELECT [ParentProductCategoryID], [ProductCategoryID], [Name] FROM SalesLT.ProductCategory WHERE ParentProductCategoryID IS NULL UNION ALL SELECT C.[ParentProductCategoryID], C.[ProductCategoryID], C.[Name] FROM SalesLT.ProductCategory AS C INNER JOIN CategoryCTE AS BC ON BC.ProductCategoryID = C.ParentProductCategoryID ) SELECT PC.[Name] AS [ParentProductCategoryName], CCTE.[Name] as [ProductCategoryName], CCTE.[ProductCategoryID] FROM CategoryCTE AS CCTE JOIN SalesLT.ProductCategory AS PC ON PC.[ProductCategoryID] = CCTE.[ParentProductCategoryID]
+
+        vProductAndDescription View. Use this to get details about the products and their associated descriptions.
+        CREATE VIEW [SalesLT].[vProductAndDescription] WITH SCHEMABINDING AS -- View (indexed or standard) to display products and product descriptions by language. SELECT p.[ProductID] ,p.[Name] ,pm.[Name] AS [ProductModel] ,pmx.[Culture] ,pd.[Description] FROM [SalesLT].[Product] p INNER JOIN [SalesLT].[ProductModel] pm ON p.[ProductModelID] = pm.[ProductModelID] INNER JOIN [SalesLT].[ProductModelProductDescription] pmx ON pm.[ProductModelID] = pmx.[ProductModelID] INNER JOIN [SalesLT].[ProductDescription] pd ON pmx.[ProductDescriptionID] = pd.[ProductDescriptionID]
+        
+        Do not use any other tables / views, other than those defined above.
+
+User Question:
+Find 5 categories for sales data.
 
 You are in the process of helping the user fulfill this request using the following plan:
-Given the available functions, it seems like you're asking for an example related to interacting with an SQL database or perhaps generating a response based on SQL data. Since the specific goal is to provide an example of one of the categories, and assuming "categories" refers to types of information that can be extracted from an SQL database, here's a plan to achieve that goal:
+To find 5 categories for sales data, we will use the SQL Database Information provided and execute an SQL query against the database using the `SQLDB-RunSQLQuery` function. The query will select from the `vGetAllCategories` view, which gives us the details about the categories available. Since the goal is to find 5 categories, we will limit the query to return only 5 categories.
 
-### Plan to Provide an Example of a Category from an SQL Database
+Plan:
 
-1. **Use SQLDB-GetSQLSchemas Function**: 
-   - This step involves calling the `SQLDB-GetSQLSchemas` function to retrieve the schema of the databases. The schema will provide information on the tables available in the database and their structure, including columns that might represent different categories of data.
+1. Use the `SQLDB-RunSQLQuery` function to run an SQL query against the SQL Database to extract information about 5 categories. The SQL query to use will be:
+   ```
+   SELECT TOP 5 ProductCategoryName FROM SalesLT.vGetAllCategories;
+   ```
+   This query selects the top 5 product category names from the `vGetAllCategories` view.
 
-2. **Identify a Table and Column Representing a Category**:
-   - Based on the schema information retrieved, manually identify a table and a specific column within that table that represents a "category" of data. For example, if there's a table named `Products`, a column within that table might be `Category` which could represent different categories of products like electronics, clothing, etc.
+2. Once we have the result from the SQL query, we will format the information into a readable format for the user.
 
-3. **Use SQLDB-RunSQLQuery Function to Extract a Category Example**:
-   - Construct an SQL
+3. Use the `UserInteraction-SendFinalAnswer` function to send the final answer back to the user. The answer will include the names of the 5 categories found in step 1.
 
-The user will ask you for help with each step.</text></message><message role="user"><text>Perform the next step of the plan if there is more work to do. When you have reached a final answer, use the UserInteraction-SendFinalAnswer function to communicate this back to the user.</text></message><message ai_model_id="gpt-4" finish_reason="tool_calls" role="assistant"><function_call id="call_3gNCAyqiz4x8do5p9mrPOMX3" name="SQLDB-GetSQLSchemas">{}</function_call></message><message role="tool"><function_result id="call_3gNCAyqiz4x8do5p9mrPOMX3" name="SQLDB-GetSQLSchemas">Use the following SQL Schema Views and their associated definitions when you need to fetch information from a database:
+This plan will effectively use the provided functions to fulfill the user's request for finding 5 categories for sales data.
 
-        CREATE VIEW [SalesLT].[vGetAllCategories] WITH SCHEMABINDING AS -- Returns the CustomerID, first name, and last name for the specified customer. WITH CategoryCTE([ParentProductCategoryID], [ProductCategoryID], [Name]) AS ( SELECT [ParentProductCategoryID], [ProductCategoryID], [Name] FROM SalesLT.ProductCategory WHERE ParentProductCategoryID IS NULL UNION ALL SELECT C.[ParentProductCategoryID], C.[ProductCategoryID], C.[Name] FROM SalesLT.ProductCategory AS C INNER JOIN CategoryCTE AS BC ON BC.ProductCategoryID = C.ParentProductCategoryID ) SELECT PC.[Name] AS [ParentProductCategoryName], CCTE.[Name] as [ProductCategoryName], CCTE.[ProductCategoryID] FROM CategoryCTE AS CCTE JOIN SalesLT.ProductCategory AS PC ON PC.[ProductCategoryID] = CCTE.[ParentProductCategoryID]
-        
-        Do not use any other tables/views other than those defined above.</function_result></message><message role="user"><text>Perform the next step of the plan if there is more work to do. When you have reached a final answer, use the UserInteraction-SendFinalAnswer function to communicate this back to the user.</text></message><message ai_model_id="gpt-4" finish_reason="tool_calls" role="assistant"><function_call id="call_WyEofwvMLiKdD82TWC7lR57C" name="SQLDB-RunSQLQuery">{"query":"SELECT TOP 1 [ProductCategoryName] FROM [SalesLT].[vGetAllCategories]"}</function_call></message><message role="tool"><function_result id="call_WyEofwvMLiKdD82TWC7lR57C" name="SQLDB-RunSQLQuery">{'ProductCategoryName': 'Bike Racks'}</function_result></message><message role="user"><text>Perform the next step of the plan if there is more work to do. When you have reached a final answer, use the UserInteraction-SendFinalAnswer function to communicate this back to the user.</text></message><message ai_model_id="gpt-4" finish_reason="tool_calls" role="assistant"><function_call id="call_AxnIvxX36lJJwvfiUMKD5jz6" name="UserInteraction-SendFinalAnswer">{"answer":"An example of a category from the SQL database is 'Bike Racks'."}</function_call></message></chat_history>
+The user will ask you for help with each step.</text></message><message role="user"><text>Perform the next step of the plan if there is more work to do. When you have reached a final answer, use the UserInteraction-SendFinalAnswer function to communicate this back to the user.</text></message><message ai_model_id="gpt-4-0125" finish_reason="tool_calls" role="assistant"><function_call id="call_O3nGMvvB9VqQQBFCZNSL8KuG" name="SQLDB-RunSQLQuery">{"query":"SELECT TOP 5 ProductCategoryName FROM SalesLT.vGetAllCategories;"}</function_call></message><message role="tool"><function_result id="call_O3nGMvvB9VqQQBFCZNSL8KuG" name="SQLDB-RunSQLQuery">{'ProductCategoryName': 'Bike Racks'},{'ProductCategoryName': 'Bike Stands'},{'ProductCategoryName': 'Bottles and Cages'},{'ProductCategoryName': 'Cleaners'},{'ProductCategoryName': 'Fenders'}</function_result></message><message role="user"><text>Perform the next step of the plan if there is more work to do. When you have reached a final answer, use the UserInteraction-SendFinalAnswer function to communicate this back to the user.</text></message><message ai_model_id="gpt-4-0125" finish_reason="tool_calls" role="assistant"><function_call id="call_nDr6u1yMLRJaNWpJynExe2s6" name="UserInteraction-SendFinalAnswer">{"answer":"The 5 categories for sales data are: 1. Bike Racks, 2. Bike Stands, 3. Bottles and Cages, 4. Cleaners, 5. Fenders."}</function_call></message></chat_history>
 ```
 
 ### 7. Production Considerations
