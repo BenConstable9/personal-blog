@@ -210,9 +210,9 @@ To find 5 categories for sales data, we will use the SQL Database Information pr
 Plan:
 
 1. Use the `SQLDB-RunSQLQuery` function to run an SQL query against the SQL Database to extract information about 5 categories. The SQL query to use will be:
-   ```
+
    SELECT TOP 5 ProductCategoryName FROM SalesLT.vGetAllCategories;
-   ```
+
    This query selects the top 5 product category names from the `vGetAllCategories` view.
 
 2. Once we have the result from the SQL query, we will format the information into a readable format for the user.
