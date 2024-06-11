@@ -48,7 +48,7 @@ params:
   # home-info mode
   homeInfoParams:
     Title: "Heya \U0001F44B"
-    Content: "I am Azure Data & AI Consultant working on a variety of projects to help customers move to the cloud. Here you will find some useful takeaways from recent projects:"
+    Content: "I am Azure Data & AI Consultant working on a variety of projects to help customers move to the cloud. On my personal blog, you will find some useful takeaways from recent projects:"
 
   socialIcons:
     - name: linkedin
