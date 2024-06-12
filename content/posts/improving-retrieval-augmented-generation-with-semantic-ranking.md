@@ -2,7 +2,7 @@
 title: "Improving Retrieval Augmented Generation (RAG) with Semantic Ranking"
 date: 2024-06-12T15:31:44+01:00
 tags: ["Semantic Kernel", "Python", "Semantic Ranking", "Azure AI Search", "Vector Search", "OpenAI", "GPT"]
-draft: false
+draft: true
 author: "Me"
 showToc: true
 TocOpen: false
@@ -18,11 +18,13 @@ ShowWordCount: true
 
 *This post is a follow up to my previous one on [Querying SQL Server With Natural Language In Semantic Kernel](https://www.benconstable.dev/posts/querying-sql-server-with-natural-language-in-semantic-kernel/), if you haven't read it yet, go take a look for a brief introduction to Semantic Kernel and the plugin architecture.*
 
+---
+
 The majority of Retrieval Augmented Generation (RAG) systems utilise [Vector Databases](https://learn.microsoft.com/en-us/semantic-kernel/memories/vector-db), such as Azure AI Search, to store chunks of documents that can be accessed via Large Language Models (LLMs). Semantic similarity, achieved via a vector search, is then used to retrieve the most relevant documents to answer the user's question. 
 
 Whilst this works well, important documents that provide good context for the question, are often missed as individual words can have multiple meanings which is not known when performing a vector-based similarity match. Instead, a hybrid approach that re-ranks the original query results, can lead to a [significant relevancy increase](https://techcommunity.microsoft.com/t5/ai-azure-ai-services-blog/azure-ai-search-outperforming-vector-search-with-hybrid/ba-p/3929167) in the documents returned, boosting RAG performance and user satisfaction.
 
-In this post, an implementation for Semantic Ranking within Semantic Kernel is demonstrated.
+In this post, an implementation for Semantic Ranking within Semantic Kernel is demonstrated, this approach uses a planner for Chain of Thought reasoning.
 
 ### 1. Prerequisites
 
@@ -34,9 +36,9 @@ For this example, we have the following deployed in Azure:
 
 ### 2. Why A Custom Plugin?
 
-Semantic Kernel includes basic support for [On Your Data](https://techcommunity.microsoft.com/t5/ai-azure-ai-services-blog/on-your-data-is-now-generally-available-in-azure-openai-service/ba-p/4059514) as shown in this [sample](https://github.com/microsoft/semantic-kernel/blob/01e826ddc1a35ae53a7134e46642297919ed79aa/python/samples/concepts/on_your_data/azure_chat_gpt_with_data_api_vector_search.py). This provides a great starting point for basic RAG applications, however combining the On Your Data functionality, alongside planners to give Chain of Thought reasoning is incompatible at the time of writing.
+Semantic Kernel includes basic support for [On Your Data](https://techcommunity.microsoft.com/t5/ai-azure-ai-services-blog/on-your-data-is-now-generally-available-in-azure-openai-service/ba-p/4059514) as shown in this [sample](https://github.com/microsoft/semantic-kernel/blob/01e826ddc1a35ae53a7134e46642297919ed79aa/python/samples/concepts/on_your_data/azure_chat_gpt_with_data_api_vector_search.py). This provides a great starting point for basic RAG applications, however combining the On Your Data functionality, alongside planners to give Chain of Thought reasoning, is incompatible at the time of writing.
 
-If you want to combine the power of a planner, with indexed documents, you need to develop a custom functions. This is essential for allowing the LLM to think through the steps, formulate a plan and use the two data sources as it thinks is necessary.
+If you want to combine the power of a planner with indexed documents, you need to develop a custom functions. This is essential for allowing the LLM to think through the steps, formulate a plan and use the two data sources as it thinks is necessary.
 
 ### 3. Semantic Config
 
@@ -48,7 +50,7 @@ If you haven't already, go and setup a [Semantic Config](https://learn.microsoft
 
 ### 4. System Prompt
 
-Simmilarly to the last Semantic Kernel plugin developed, a system prompt is setup to give the LLM knowledge about this plugin. Unlike the SQL system prompt, we don't need to provide any information on the contents of AI Search as it only needs to provide a plain text query.
+Similarly to the last Semantic Kernel plugin developed, a system prompt is setup to give the LLM knowledge about this plugin. Unlike the SQL system prompt, we don't need to provide any information on the contents of AI Search as it only needs to provide a plain text query.
 
 ```python
 from semantic_kernel.functions import kernel_function
@@ -112,6 +114,8 @@ async def run_ai_search_on_text(
     ]
     return documents
 ```
+
+In this case, the title, original content chunk and category tags are returned to the LLM. This functionality can be extended further with the use of captions and highlights which provide 
 
 Semantic Kernel uses *kernel_function* to provide information to the LLM on what actions the function is capable of completing. This is used in the planning stage to determine whether to invoke the function or not.
 
