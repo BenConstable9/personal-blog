@@ -55,7 +55,7 @@ chat_service = AzureChatCompletion(
 kernel.add_service(chat_service)
 ```
 
-### 3. SQL Schema Knowledge
+### 3. SQL Schema Knowledge (System Prompt)
 
 To enable the SQL plugin, a custom [Semantic Kernel Plugin](https://learn.microsoft.com/en-us/semantic-kernel/agents/plugins/?tabs=python) is developed. The SQL Plugin holds information on the schemas available within the database that the LLM can use to form an SQL query, and provides a method to run a given SQL query.
 
@@ -91,7 +91,7 @@ This method could be implemented as a dynamic method similarly to the query func
 
 ### 4. SQL Query Function
 
-To implement querying of the database, another function is added to the SQLPlugin to run the generated query against the database. The *aioodbc* library is used for asynchronous connections to the database.
+To implement querying of the database, another function is added to the SQLPlugin to run the generated query against the database. The *aioodbc* library is used for asynchronous connections to the database; running functions asynchronously if deployed in Azure Functions is **essential** for good throughput.
 
 ```python
 @kernel_function(
@@ -132,7 +132,8 @@ Our custom SQL plugin needs to be registered with Semantic Kernel.
 
 ```python
 from sql_plugin.SQLPlugin import SQLPlugin
-sql_db_plugin = kernel.add_plugin(SQLPlugin(), plugin_name="SQLDB")
+
+kernel.add_plugin(SQLPlugin(), plugin_name="SQLDB")
 ```
 
 ### 6. Setting Up The Planner
