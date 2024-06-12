@@ -1,8 +1,8 @@
 ---
-title: "Improving Retrieval Augmented Generation (RAG) with Semantic Ranking"
-date: 2024-06-12T15:31:44+01:00
+title: "Improving Retrieval Augmented Generation (RAG) with Hybrid Semantic Ranking"
+date: 2024-06-12T19:00:00+01:00
 tags: ["Semantic Kernel", "Python", "Semantic Ranking", "Azure AI Search", "Vector Search", "OpenAI", "GPT"]
-draft: true
+draft: false
 author: "Me"
 showToc: true
 TocOpen: false
@@ -20,11 +20,11 @@ ShowWordCount: true
 
 ---
 
-The majority of Retrieval Augmented Generation (RAG) systems utilise [Vector Databases](https://learn.microsoft.com/en-us/semantic-kernel/memories/vector-db), such as Azure AI Search, to store chunks of documents that can be accessed via Large Language Models (LLMs). Semantic similarity, achieved via a vector search, is then used to retrieve the most relevant documents to answer the user's question. 
+The majority of Retrieval Augmented Generation (RAG) systems utilise [Vector Databases](https://learn.microsoft.com/en-us/semantic-kernel/memories/vector-db), such as Azure AI Search, to store chunks of documents that can be accessed via Large Language Models (LLMs). Semantic similarity, powered via a vector search, is then used to retrieve the most relevant documents to answer the user's question. 
 
 Whilst this works well, important documents that provide good context for the question, are often missed as individual words can have multiple meanings which is not known when performing a vector-based similarity match. Instead, a hybrid approach that re-ranks the original query results, can lead to a [significant relevancy increase](https://techcommunity.microsoft.com/t5/ai-azure-ai-services-blog/azure-ai-search-outperforming-vector-search-with-hybrid/ba-p/3929167) in the documents returned, boosting RAG performance and user satisfaction.
 
-In this post, an implementation for Semantic Ranking within Semantic Kernel is demonstrated, this approach uses a planner for Chain of Thought reasoning.
+In this post, an implementation for Hybrid Semantic Ranking within Semantic Kernel is demonstrated, this approach uses a planner for Chain of Thought reasoning.
 
 ### 1. Prerequisites
 
@@ -57,6 +57,7 @@ from semantic_kernel.functions import kernel_function
 from typing import Annotated
 from azure.core.credentials import AzureKeyCredential
 
+from azure.search.documents.models import VectorizableTextQuery
 from azure.search.documents.aio import SearchClient
 import os
 
@@ -69,11 +70,15 @@ class AISearchPlugin:
         return """Use the AI Search to return documents that have been indexed, that might be relevant for a piece of text to aid understanding. Documents ingested here could be relevant to anything, so AI Search should always be used. Always provide references to any documents you use."""
 ```
 
-Basic prompt engineering is used to force the LLM to always use AI Search; without this, the LLM may decide to skip it if it is not considered relevant. Unlike the SQL DB example, the LLM doesn't know the structure of the documents, or the type of data that is stored here, so it should always consider it in our example.
+Basic prompt engineering is used to guide the LLM to always use AI Search; without this, the LLM may decide to skip it if it is not considered relevant. Unlike the SQL DB example, the LLM doesn't know the structure of the documents, or the type of data that is stored here, so it should always consider it in our example.
 
 ### 5. AI Search Query Function
 
-To implement the Semantic Ranking Search, a function is added to the plugin as follows. The search is against the specified Semantic Config; you can experiment with different configs to improve relevancy. Returning the data in a dictionary format, allows the LLM to understand the different fields, and extract the relevant ones to fulfill the user request.
+To implement the Hybrid Semantic Ranking Search, a function is added to the plugin as follows. The search is against the specified Semantic Config and the search vectors; you can experiment with different configs to improve relevancy. Here, [embedded vectorisation](https://learn.microsoft.com/en-gb/azure/search/vector-search-how-to-configure-vectorizer) is used to allow AI Search to automatically run the vectorisation for you; this reduces complexity in your API calls and makes it easier to setup searches. Instead of passing a set of vectors, we pass the text to vectorise and AI Search handles the rest.
+
+*At the time of writing embedded vectorisation is still in preview within the SDK. Version **11.6.0b3** is used in this plugin.*
+
+Returning the data in a dictionary format, allows the LLM to understand the different fields, and extract the relevant ones to fulfill the user request.
 
 ```python
 @kernel_function(
@@ -102,11 +107,17 @@ async def run_ai_search_on_text(
         credential=credential,
     )
 
+    vector_query = VectorizableTextQuery(
+        text=text, k_nearest_neighbors=5, fields="< YOUR VECTOR FIELDS e.g. title_vector,chunk_vector >"
+    )
+
     results = await search_client.search(
+        top=2,
         query_type="semantic",
         semantic_configuration_name="< YOUR SEMANTIC CONFIG NAME >",
         search_text=text,
         select="< FIELDS TO RETURN e.g. title,chunk,categories>",
+        vector_queries=[vector_query],
     )
 
     documents = [
@@ -115,9 +126,11 @@ async def run_ai_search_on_text(
     return documents
 ```
 
-In this case, the title, original content chunk and category tags are returned to the LLM. This functionality can be extended further with the use of captions and highlights which provide 
-
 Semantic Kernel uses *kernel_function* to provide information to the LLM on what actions the function is capable of completing. This is used in the planning stage to determine whether to invoke the function or not.
+
+In this case, the title, original content chunk and category tags are returned to the LLM. This functionality can be extended further with the use of [captions and highlights](https://learn.microsoft.com/en-gb/azure/search/semantic-answers) which provide key extracts from the chunks.
+
+Depending on your content window size (token limit), you can return a differing number of results.
 
 ### 6. Integrating With An Existing Planner
 
@@ -131,7 +144,7 @@ kernel.add_plugin(AISearchPlugin(), plugin_name="AISearch")
 
 For a given question, we can update the system prompt to include additional information on how we want to use AI Search.
 ```python
-question = "Summarise 5 products and any documents related to them?"
+question = "Select 1 product and any documents related to them?"
 full_prompt = f"""Here is some additional information that you might find useful in determining which functions to call to fulfill the user question. 
 
 AI Search Information:
@@ -166,7 +179,7 @@ Use the following SQL Schema Views and their associated definitions when you nee
         Do not use any other tables / views, other than those defined above.
 
 User Question:
-Summarise 5 products and any documents related to them?
+Select 1 product and any documents related to them?
 
 You are in the process of helping the user fulfill this request using the following plan:
 To achieve the goal of summarizing 5 products and any documents related to them, we will follow a structured plan that leverages the provided functions. Here's how we can proceed:
@@ -174,21 +187,22 @@ To achieve the goal of summarizing 5 products and any documents related to them,
 ### Step 1: Fetch Product Information
 - **Action**: Use the `SQLDB-RunSQLQuery` function.
 - **Input**: 
-  - **Query**: `"SELECT TOP 5 p.[ProductID], p.[Name], pm.[Name] AS [ProductModel], pd.[Description] FROM [SalesLT].[vProductAndDescription] p ORDER BY p.[ProductID]"`
+  - **Query**: `"SELECT TOP 1 p.[ProductID], p.[Name], pm.[Name] AS [ProductModel], pd.[Description] FROM [SalesLT].[vProductAndDescription] p ORDER BY p.[ProductID]"`
 - **Purpose**: This query fetches the top 5 products from the `vProductAndDescription` view, including their ID, name, model, and description. This step is crucial for obtaining the basic information about the products we want to summarize.
 
-### Step 2: Identify Relevant Documents for Each Product
+### Step 2: Identify Relevant Documents
+After selecting a product and obtaining its description, we will use this description to find related documents using AI Search. This will help us identify any indexed documents that are relevant to the selected product.
+
 - **Action**: Use the `AISearch-RunAISearchOnText` function.
-- **Input**: 
-  - **Text**: For each product obtained from Step 1, we will use the product's name or description as the input text.
-- **Purpose**: This step aims to find documents that are relevant to each of the 5 products based on
 
 The user will ask you for help with each step.
 ```
 
 With the use of a custom plugin, our planner can now decide the steps it needs to take to fullfil the user request. Here, it chooses to query the database first to find the relevant categories, followed by choosing to use the AI Search to retrieve the relevant documents. Combining multiple plugins with a planner, provides a great basis for Chain of Thought reasoning which can be further enhanced with prompt engineering.
 
-In a use case like this, a Semantic Ranking based search will excel over a vector based search on the chunk, avoiding content that is similar in a vector based search, but different in semantic meaning. If the documents are appropriately tagged with the category, relevant documents will be surfaced and ranked accordingly as well. Experimentation is needed to determine whether Semantic Ranking is good for an individual use case. 
+In a use case like this, a Hybrid Semantic Ranking based search will excel over a vector based search on the chunk, avoiding content that is similar in a vector based search, but different in semantic meaning. The vector search is used as one of the base searches, ensuring that similar semantic content is surfaced, but the Semantic Ranking ensures it is relevant to the question and re-orders it as necessary.
+
+If the documents are appropriately tagged with the category, relevant documents will be surfaced and ranked accordingly as well. Experimentation is needed to determine whether Semantic Ranking is good for an individual use case, but overall it shows a significant improve on a purely vector-based search. 
 
 ### 7. Production Considerations
 
