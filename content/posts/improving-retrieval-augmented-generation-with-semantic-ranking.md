@@ -115,7 +115,7 @@ async def run_ai_search_on_text(
 
 Semantic Kernel uses *kernel_function* to provide information to the LLM on what actions the function is capable of completing. This is used in the planning stage to determine whether to invoke the function or not.
 
-### 6. Integrating With Exiting Planner
+### 6. Integrating With An Existing Planner
 
 The developed plugin can be integrated with the existing Planner and the full prompt updated with the AI Search information.
 
