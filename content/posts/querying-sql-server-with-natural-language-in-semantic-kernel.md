@@ -235,3 +235,7 @@ If using this technique in production, the following should be considered amongs
 - Proper management of secrets within the Semantic Kernel script.
 - SQL Data Access Management to ensure that the LLM cannot query data it does not have access to.
 - Validation of SQL query to ensure it does not invoke an SQL injection for instance.
+
+### 8. Full Code
+
+You can find the full plugin and example notebook in this [repository](https://github.com/BenConstable9/semantic-kernel-experiments).
