@@ -108,7 +108,9 @@ async def run_ai_search_on_text(
     )
 
     vector_query = VectorizableTextQuery(
-        text=text, k_nearest_neighbors=5, fields="< YOUR VECTOR FIELDS e.g. title_vector,chunk_vector >"
+        text=text,
+        k_nearest_neighbors=5,
+        fields="< YOUR VECTOR FIELDS e.g. title_vector,chunk_vector >",
     )
 
     results = await search_client.search(
